@@ -181,17 +181,18 @@ int main( void )
             GLfloat q = sig * F * A * (pow(Theat, 4) - pow(Tobject, 4));
             GLfloat parea = 0.784 / pow(66, 2);
             GLfloat qp = parea * q;
-            if(p.pos.y >= -0.5 + 62 * 0.015){
-                GLfloat dist = -0.5 + 60 * 0.015 - p.pos.y;
-                GLfloat c = 460.548;
-                GLfloat dT = (qp / c) * (1 - dist);
+            //if(p.pos.y >= -0.5 + 62 * 0.015){
+            //GLfloat dist = (length(heatpos - p.pos) - 4.5);
+            //std::cout << dist << std::endl;
+            GLfloat c = 460.548;
+            GLfloat dT = qp / c;// / pow(dist, 2);
                 //std::cout << dT << std::endl;
                 //std::cout << p.temp << std::endl;
-                p.temp = p.temp + dT;
+            p.temp = p.temp + dT;
                 //std::cout << p.temp << std::endl;
-            }else{
-                p.temp = 400.0f;
-            }
+            //}else{
+            //    p.temp = 400.0f;
+            //}
         }
         
         vec4 iron = vec4(0.501,0.501,0.501,1.0);
