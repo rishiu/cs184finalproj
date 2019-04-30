@@ -18,13 +18,15 @@ using namespace glm;
 
 #include <vector>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 struct Particle{
     vec3 vel;
     vec4 pos, color;
     GLfloat temp;
     
-    Particle(vec4 p, vec3 v, vec4 c): vel(v), pos(p), color(c) { }
+    Particle(vec4 p, vec3 v, vec4 c, GLfloat temp): vel(v), pos(p), color(c), temp(temp) { }
 };
 
 int main( void )
@@ -82,12 +84,15 @@ int main( void )
 
 	// Get a handle for our "MVP" uniform
 	GLuint MatrixID = glGetUniformLocation(programID, "MVP");
+    
+    //GLuint lightpos = glGetUniformLocation(programID, "u_light_pos");
+    //GLuint lightin = glGetUniformLocation(programID, "u_light_intensity");
 
 	// Projection matrix : 45° Field of View, 4:3 ratio, display range : 0.1 unit <-> 100 units
 	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 	// Camera matrix
 	glm::mat4 View       = glm::lookAt(
-								glm::vec3(4,1,-5), // Camera is at (4,3,-3), in World Space
+								glm::vec3(4,1,-3), // Camera is at (4,3,-3), in World Space
 								glm::vec3(0,0,0), // and looks at the origin
 								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
 						   );
@@ -96,7 +101,8 @@ int main( void )
 	// Our ModelViewProjection : multiplication of our 3 matrices
 	glm::mat4 MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
-    vec3 heatpos = vec3(0,5,0); //In world coordinates
+    vec4 heatpos = vec4(0,5,0,1); //In world coordinates
+    vec4 lightintensity = vec4(0.5,0.5,0.5,0.1);
     //For early revisions I assume the heat source is the same size as a face of the cube.
     
     std::vector<Particle> particles;
@@ -110,17 +116,17 @@ int main( void )
         facenormals.push_back(vec3(0,0,i));
     }
     
-    static GLfloat g_vertex_buffer_data[2706867];
-    static GLfloat g_color_buffer_data[2706867];
-    
+    static GLfloat g_vertex_buffer_data[21654936];
+    static GLfloat g_color_buffer_data[21654936];
+                
     int index = 0;
-    for(GLfloat x = -0.5f; x < 0.5f; x+=0.015f){
-        for(GLfloat y = -0.5f; y < 0.5f; y+=0.015f){
-            for(GLfloat z = -0.5f; z < 0.5f; z+=0.015f){
+    for(GLfloat x = -0.5f; x < 0.5f; x+=0.0075f){
+        for(GLfloat y = -0.5f; y < 0.5f; y+=0.0075f){
+            for(GLfloat z = -0.5f; z < 0.5f; z+=0.0075f){
                 vec4 p = vec4(x, y, z, 1.0f);
                 vec3 v = vec3(0,0,0);
                 vec4 c = vec4(1,1,1,1);
-                Particle pa = Particle(p, v, c);
+                Particle pa = Particle(p, v, c, 400.0f);
                 particles.push_back(pa);
                 g_vertex_buffer_data[index] = pa.pos.x;
                 g_vertex_buffer_data[index + 1] = pa.pos.y;
@@ -145,6 +151,8 @@ int main( void )
         }
     }
     
+    std::cout << particles.size() << std::endl;
+    
 	GLuint vertexbuffer;
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -155,34 +163,86 @@ int main( void )
 	glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_DYNAMIC_DRAW);
 
+    int c = 0;
 	do{
-
+        //std::cout << "o" << std::endl;
+        GLfloat sig = 5.67E-8;
+        GLfloat Theat = 5500.0f;
+        //GLfloat Tobject = 400.0f;
+        GLfloat F = 1.0f;
+        GLfloat A = 0.784f;
+        //std::cout << q << std::endl;
+        
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
-        for(vec3 v : facenormals){
-            if(dot(v, heatpos) > 0){
-                
+        for(Particle &p : particles){
+            GLfloat Tobject = p.temp;
+            GLfloat q = sig * F * A * (pow(Theat, 4) - pow(Tobject, 4));
+            GLfloat parea = 0.784 / pow(66, 2);
+            GLfloat qp = parea * q;
+            if(p.pos.y >= -0.5 + 62 * 0.015){
+                GLfloat dist = -0.5 + 60 * 0.015 - p.pos.y;
+                GLfloat c = 460.548;
+                GLfloat dT = (qp / c) * (1 - dist);
+                //std::cout << dT << std::endl;
+                //std::cout << p.temp << std::endl;
+                p.temp = p.temp + dT;
+                //std::cout << p.temp << std::endl;
+            }else{
+                p.temp = 400.0f;
             }
         }
-
         
-        int ind = 0;
-        for(Particle p : particles){
-            g_color_buffer_data[ind] = 0.0f;
-            g_color_buffer_data[ind + 1] = 0.0f;
-            g_color_buffer_data[ind + 2] = 0.0f;
-            g_color_buffer_data[ind + 3] = 0.0f;
-            g_color_buffer_data[ind + 4] = 0.0f;
-            g_color_buffer_data[ind + 5] = 0.0f;
-            g_color_buffer_data[ind + 6] = 0.0f;
-            g_color_buffer_data[ind + 7] = 0.0f;
-            g_color_buffer_data[ind + 8] = 0.0f;
-            ind += 9;
+        vec4 iron = vec4(0.501,0.501,0.501,1.0);
+        vec4 red = vec4(1.0,0,0,1);
+        vec4 reddishorange = vec4(1.0, 0.27, 0, 1);
+        vec4 yellowishorange = vec4(1.0, 0.682, 0.259, 1);
+        vec4 yellow = vec4(1.0, 1.0, 0.0, 1.0);
+        vec4 yellowishwhite = vec4(1.0, 1.0, 0.5, 1.0);
+        vec4 warmwhite = vec4(1.0, 1.0, 0.8, 1.0);
+        vec4 white = vec4(1.0, 1.0, 1.0, 1.0);
+        int index = 0;
+        for(Particle &p : particles){
+            vec4 color = vec4();
+            //std::cout << p.temp << std::endl;
+            if(p.temp < 1000.0){
+                GLfloat diff = (p.temp - 400.0)/(1000.0 - 400.0);
+                color = ((1 - diff) * iron) + (diff * red);
+            }else if(p.temp > 1000.0 && p.temp <= 1500.0){
+                GLfloat diff = (p.temp - 1000.0)/(1500.0 - 1000.0);
+                color = ((1 - diff) * red) + (diff * reddishorange) + 0.01f * iron;
+            }else if(p.temp > 1500.0 && p.temp <= 2000.0){
+                GLfloat diff = (p.temp - 1500.0)/(2000.0 - 1500.0);
+                color = ((1 - diff) * reddishorange) + (diff * yellowishorange);
+            }else if(p.temp >= 2000.0 && p.temp <= 2800.0){
+                GLfloat diff = (p.temp - 2000.0)/(2800.0 - 2000.0);
+                color = ((1 - diff) * yellowishorange) + (diff * yellow);
+            }else if(p.temp >= 2800.0 && p.temp <= 3500.0){
+                GLfloat diff = (p.temp - 2800.0)/(3500.0 - 2800.0);
+                color = ((1 - diff) * yellow) + (diff * yellowishwhite);
+            }else if(p.temp >= 3500.0 && p.temp <= 4500.0){
+                GLfloat diff = (p.temp - 3500.0)/(4500.0 - 3500.0);
+                color = ((1 - diff) * yellowishwhite) + (diff * warmwhite);
+            }else if(p.temp >= 4500.0 && p.temp <= 5500.0){
+                GLfloat diff = (p.temp - 4500.0)/(5500.0 - 4500.0);
+                color = ((1 - diff) * warmwhite) + (diff * white);
+            }
+            //std::cout << color.x << std::endl;
+            g_color_buffer_data[index] = color.x;
+            g_color_buffer_data[index + 1] = color.y;
+            g_color_buffer_data[index + 2] = color.z;
+            g_color_buffer_data[index + 3] = color.x;
+            g_color_buffer_data[index + 4] = color.y;
+            g_color_buffer_data[index + 5] = color.z;
+            g_color_buffer_data[index + 6] = color.x;
+            g_color_buffer_data[index + 7] = color.y;
+            g_color_buffer_data[index + 8] = color.z;
+            index += 9;
         }
         
-        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);
 
 		// Use our shader
 		glUseProgram(programID);
@@ -190,6 +250,9 @@ int main( void )
 		// Send our transformation to the currently bound shader, 
 		// in the "MVP" uniform
 		glUniformMatrix4fv(MatrixID, 1, GL_FALSE, &MVP[0][0]);
+        
+        //glUniform4fv(lightpos, 1, heatpos);
+        //glUniform4fv(lightin, 1, lightintensity);
 
 		// 1rst attribute buffer : vertices
 		glEnableVertexAttribArray(0);
@@ -216,7 +279,7 @@ int main( void )
 		);
         
 		// Draw the triangle !
-		glDrawArrays(GL_TRIANGLES, 0, 2706867); // 12*3 indices starting at 0 -> 12 triangles
+		glDrawArrays(GL_TRIANGLES, 0, 21654936); // 12*3 indices starting at 0 -> 12 triangles
 
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
@@ -224,10 +287,13 @@ int main( void )
 		// Swap buffers
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        c++;
 
 	} // Check if the ESC key was pressed or the window was closed
 	while( glfwGetKey(window, GLFW_KEY_ESCAPE ) != GLFW_PRESS &&
-		   glfwWindowShouldClose(window) == 0 );
+		   glfwWindowShouldClose(window) == 0);
 
 	// Cleanup VBO and shader
 	glDeleteBuffers(1, &vertexbuffer);
