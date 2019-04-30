@@ -87,7 +87,7 @@ int main( void )
 	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
 	// Camera matrix
 	glm::mat4 View       = glm::lookAt(
-								glm::vec3(4,3,-3), // Camera is at (4,3,-3), in World Space
+								glm::vec3(4,1,-5), // Camera is at (4,3,-3), in World Space
 								glm::vec3(0,0,0), // and looks at the origin
 								glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
 						   );
@@ -96,136 +96,93 @@ int main( void )
 	// Our ModelViewProjection : multiplication of our 3 matrices
 	glm::mat4 MVP = Projection * View * Model; // Remember, matrix multiplication is the other way around
 
+    vec3 heatpos = vec3(0,5,0); //In world coordinates
+    //For early revisions I assume the heat source is the same size as a face of the cube.
     
     std::vector<Particle> particles;
     
-    for(GLfloat x = -1.0f; x < 1.0f; x+=0.5f){
-        for(GLfloat y = -1.0f; y < 1.0f; y+=0.5f){
-            for(GLfloat z = -1.0f; z < 1.0f; z+=0.5f){
+    std::vector<vec3> facenormals;
+    
+    
+    for(int i = -1; i < 2; i+=2){
+        facenormals.push_back(vec3(0,i,0));
+        facenormals.push_back(vec3(i,0,0));
+        facenormals.push_back(vec3(0,0,i));
+    }
+    
+    static GLfloat g_vertex_buffer_data[2706867];
+    static GLfloat g_color_buffer_data[2706867];
+    
+    int index = 0;
+    for(GLfloat x = -0.5f; x < 0.5f; x+=0.015f){
+        for(GLfloat y = -0.5f; y < 0.5f; y+=0.015f){
+            for(GLfloat z = -0.5f; z < 0.5f; z+=0.015f){
                 vec4 p = vec4(x, y, z, 1.0f);
                 vec3 v = vec3(0,0,0);
                 vec4 c = vec4(1,1,1,1);
                 Particle pa = Particle(p, v, c);
                 particles.push_back(pa);
+                g_vertex_buffer_data[index] = pa.pos.x;
+                g_vertex_buffer_data[index + 1] = pa.pos.y;
+                g_vertex_buffer_data[index + 2] = pa.pos.z;
+                g_vertex_buffer_data[index + 3] = pa.pos.x + 0.0075;
+                g_vertex_buffer_data[index + 4] = pa.pos.y;
+                g_vertex_buffer_data[index + 5] = pa.pos.z;
+                g_vertex_buffer_data[index + 6] = pa.pos.x;
+                g_vertex_buffer_data[index + 7] = pa.pos.y + 0.0075;
+                g_vertex_buffer_data[index + 8] = pa.pos.z;
+                g_color_buffer_data[index] = 0.0f;
+                g_color_buffer_data[index + 1] = 0.0f;
+                g_color_buffer_data[index + 2] = 0.0f;
+                g_color_buffer_data[index + 3] = 0.0f;
+                g_color_buffer_data[index + 4] = 0.0f;
+                g_color_buffer_data[index + 5] = 0.0f;
+                g_color_buffer_data[index + 6] = 0.0f;
+                g_color_buffer_data[index + 7] = 0.0f;
+                g_color_buffer_data[index + 8] = 0.0f;
+                index += 9;
             }
         }
     }
     
-    for(int i =0 ;i<particles.size();i++){
-        std::cout << particles[i].pos.x << " " <<  particles[i].pos.y << " " <<  particles[i].pos.z << std::endl;
-    }
-    
-    static GLfloat g_vertex_buffer_data[576];
-    
-    int index = 0;
-    for(Particle p : particles){
-        g_vertex_buffer_data[index] = p.pos.x;
-        g_vertex_buffer_data[index + 1] = p.pos.y;
-        g_vertex_buffer_data[index + 2] = p.pos.z;
-        g_vertex_buffer_data[index + 3] = p.pos.x + 0.01;
-        g_vertex_buffer_data[index + 4] = p.pos.y;
-        g_vertex_buffer_data[index + 5] = p.pos.z;
-        g_vertex_buffer_data[index + 6] = p.pos.x;
-        g_vertex_buffer_data[index + 7] = p.pos.y + 0.01;
-        g_vertex_buffer_data[index + 8] = p.pos.z;
-        index += 9;
-    }
-    
-	// Our vertices. Tree consecutive floats give a 3D vertex; Three consecutive vertices give a triangle.
-	// A cube has 6 faces with 2 triangles each, so this makes 6*2=12 triangles, and 12*3 vertices
-	/*static const GLfloat g_vertex_buffer_data[] = {
-		-1.0f,-1.0f,-1.0f,
-		-1.0f,-1.0f, 1.0f,
-		-1.0f, 1.0f, 1.0f,
-		 1.0f, 1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f, 1.0f,
-		-1.0f,-1.0f,-1.0f,
-		 1.0f,-1.0f,-1.0f,
-		 1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f, 1.0f,
-		-1.0f,-1.0f, 1.0f,
-		-1.0f,-1.0f,-1.0f,
-		-1.0f, 1.0f, 1.0f,
-		-1.0f,-1.0f, 1.0f,
-		 1.0f,-1.0f, 1.0f,
-		 1.0f, 1.0f, 1.0f,
-		 1.0f,-1.0f,-1.0f,
-		 1.0f, 1.0f,-1.0f,
-		 1.0f,-1.0f,-1.0f,
-		 1.0f, 1.0f, 1.0f,
-		 1.0f,-1.0f, 1.0f,
-		 1.0f, 1.0f, 1.0f,
-		 1.0f, 1.0f,-1.0f,
-		-1.0f, 1.0f,-1.0f,
-		 1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f,-1.0f,
-		-1.0f, 1.0f, 1.0f,
-		 1.0f, 1.0f, 1.0f,
-		-1.0f, 1.0f, 1.0f,
-		 1.0f,-1.0f, 1.0f
-	};*/
-
-	// One color for each vertex. They were generated randomly.
-	/*static const GLfloat g_color_buffer_data[] = {
-		0.583f,  0.771f,  0.014f,
-		0.609f,  0.115f,  0.436f,
-		0.327f,  0.483f,  0.844f,
-		0.822f,  0.569f,  0.201f,
-		0.435f,  0.602f,  0.223f,
-		0.310f,  0.747f,  0.185f,
-		0.597f,  0.770f,  0.761f,
-		0.559f,  0.436f,  0.730f,
-		0.359f,  0.583f,  0.152f,
-		0.483f,  0.596f,  0.789f,
-		0.559f,  0.861f,  0.639f,
-		0.195f,  0.548f,  0.859f,
-		0.014f,  0.184f,  0.576f,
-		0.771f,  0.328f,  0.970f,
-		0.406f,  0.615f,  0.116f,
-		0.676f,  0.977f,  0.133f,
-		0.971f,  0.572f,  0.833f,
-		0.140f,  0.616f,  0.489f,
-		0.997f,  0.513f,  0.064f,
-		0.945f,  0.719f,  0.592f,
-		0.543f,  0.021f,  0.978f,
-		0.279f,  0.317f,  0.505f,
-		0.167f,  0.620f,  0.077f,
-		0.347f,  0.857f,  0.137f,
-		0.055f,  0.953f,  0.042f,
-		0.714f,  0.505f,  0.345f,
-		0.783f,  0.290f,  0.734f,
-		0.722f,  0.645f,  0.174f,
-		0.302f,  0.455f,  0.848f,
-		0.225f,  0.587f,  0.040f,
-		0.517f,  0.713f,  0.338f,
-		0.053f,  0.959f,  0.120f,
-		0.393f,  0.621f,  0.362f,
-		0.673f,  0.211f,  0.457f,
-		0.820f,  0.883f,  0.371f,
-		0.982f,  0.099f,  0.879f
-	};*/
-
 	GLuint vertexbuffer;
 	glGenBuffers(1, &vertexbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_DYNAMIC_DRAW);
 
-	/*GLuint colorbuffer;
+	GLuint colorbuffer;
 	glGenBuffers(1, &colorbuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_STATIC_DRAW);*/
+	glBufferData(GL_ARRAY_BUFFER, sizeof(g_color_buffer_data), g_color_buffer_data, GL_DYNAMIC_DRAW);
 
 	do{
 
 		// Clear the screen
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        
+        for(vec3 v : facenormals){
+            if(dot(v, heatpos) > 0){
+                
+            }
+        }
+
+        
+        int ind = 0;
+        for(Particle p : particles){
+            g_color_buffer_data[ind] = 0.0f;
+            g_color_buffer_data[ind + 1] = 0.0f;
+            g_color_buffer_data[ind + 2] = 0.0f;
+            g_color_buffer_data[ind + 3] = 0.0f;
+            g_color_buffer_data[ind + 4] = 0.0f;
+            g_color_buffer_data[ind + 5] = 0.0f;
+            g_color_buffer_data[ind + 6] = 0.0f;
+            g_color_buffer_data[ind + 7] = 0.0f;
+            g_color_buffer_data[ind + 8] = 0.0f;
+            ind += 9;
+        }
+        
+        glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(g_vertex_buffer_data), g_vertex_buffer_data, GL_STATIC_DRAW);
 
 		// Use our shader
 		glUseProgram(programID);
@@ -246,7 +203,7 @@ int main( void )
 			(void*)0            // array buffer offset
 		);
 
-		/*// 2nd attribute buffer : colors
+		// 2nd attribute buffer : colors
 		glEnableVertexAttribArray(1);
 		glBindBuffer(GL_ARRAY_BUFFER, colorbuffer);
 		glVertexAttribPointer(
@@ -256,10 +213,10 @@ int main( void )
 			GL_FALSE,                         // normalized?
 			0,                                // stride
 			(void*)0                          // array buffer offset
-		);*/
-
+		);
+        
 		// Draw the triangle !
-		glDrawArrays(GL_TRIANGLES, 0, 12*3); // 12*3 indices starting at 0 -> 12 triangles
+		glDrawArrays(GL_TRIANGLES, 0, 2706867); // 12*3 indices starting at 0 -> 12 triangles
 
 		glDisableVertexAttribArray(0);
 		glDisableVertexAttribArray(1);
